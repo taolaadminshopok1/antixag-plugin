@@ -1,0 +1,24 @@
+name: ${project.name}
+version: ${project.version}
+main: vn.madoez.antixag.AntiXagPlugin
+api-version: '1.20'
+authors: [Madoez Vn, BakiCode, Alexander Vn]
+website: ${project.url}
+description: ${project.description}
+softdepend: [ProtocolLib]
+load: STARTUP
+
+commands:
+  antixag:
+    description: Main command of AntiXag.
+    usage: /antixag <reload|status|debug|worlds|help>
+    aliases: [antixray, axag]
+    permission: antixag.admin
+
+permissions:
+  antixag.admin:
+    description: Allows managing the AntiXag plugin.
+    default: op
+  antixag.bypass:
+    description: Allows bypassing the AntiXag protection.
+    default: false

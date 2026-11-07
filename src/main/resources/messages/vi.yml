@@ -1,0 +1,35 @@
+# AntiXag - Thông điệp tiếng Việt
+# Copyright (C) 2026 Madoez Vn, BakiCode, Alexander Vn
+# GPL-3.0
+
+prefix: '&8[&cAntiXag&8] &r'
+
+no-permission: '&cBạn không có quyền sử dụng lệnh này.'
+player-only: '&cLệnh này chỉ có thể dùng trong game.'
+unknown-command: '&cLệnh con không hợp lệ. Hãy dùng &f/antixag help&c.'
+reloaded: '&aĐã tải lại cấu hình trong &f{0}ms&a.'
+
+status-header: '&8&m---------------------&r &cAntiXag &8&m-----------------'
+status-version: '&fPhiên bản: &a{0}'
+status-server: '&fMáy chủ: &a{0}'
+status-protocol: '&fProtocolLib: &a{0}'
+status-language: '&fNgôn ngữ: &a{0}'
+status-worlds: '&fThế giới được bảo vệ: &a{0}'
+status-hidden: '&fLoại quặng bị ẩn: &a{0}'
+status-chunks: '&fChunk đã xử lý: &a{0}'
+status-ores: '&fQuặng đã ẩn: &a{0}'
+status-enabled: '&fChế độ: &a{0}'
+
+debug-enabled: '&aĐã bật chế độ gỡ lỗi.'
+debug-disabled: '&eĐã tắt chế độ gỡ lỗi.'
+
+world-list-header: '&8&m---------------------&r &cAntiXag &8&m-----------------'
+world-list-entry: '&f{0} &7- &ađang bật &7({1})'
+world-list-entry-disabled: '&f{0} &7- &cđang tắt &7({1})'
+
+help-header: '&8&m---------------------&r &cAntiXag trợ giúp &8&m-----------------'
+help-reload: '&f/antixag reload &7- tải lại cấu hình'
+help-status: '&f/antixag status &7- xem trạng thái plugin'
+help-debug: '&f/antixag debug &7- bật/tắt chế độ gỡ lỗi'
+help-worlds: '&f/antixag worlds &7- xem danh sách thế giới được bảo vệ'
+help-help: '&f/antixag help &7- hiển thị trợ giúp'

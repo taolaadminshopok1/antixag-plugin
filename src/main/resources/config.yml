@@ -1,0 +1,125 @@
+# ============================================================================
+#  AntiXag - Anti X-Ray protection for Paper/Spigot servers
+#  Copyright (C) 2026 Madoez Vn, BakiCode, Alexander Vn
+#  Licensed under the GNU General Public License v3.0 - https://www.gnu.org/licenses/gpl-3.0.txt
+#
+#  English configuration file. A Vietnamese translation of every comment can
+#  be found in the README of the repository.
+# ============================================================================
+
+settings:
+  # Prints detailed information into the console.
+  debug: false
+
+  # The language of the plugin messages. Available: en, vi
+  language: en
+
+  # How often the plugin refreshes its internal state (in seconds).
+  # Set to 0 to disable the task.
+  autosave-seconds: 60
+
+  # Restores the real blocks of a chunk when a player leaves the world.
+  restore-on-unload: true
+
+  # Hides ores that are placed by players. Set to false when the ores of your
+  # players should always stay visible.
+  hide-placed-blocks: true
+
+  # Prevents explosions from revealing the ores around the blast.
+  protect-from-explosions: true
+
+  # Only hides ores while the player is in survival mode.
+  hide-only-in-survival: false
+
+  # Worlds that are never protected by AntiXag.
+  excluded-worlds: []
+
+defaults:
+  # Enables or disables the protection of this group of worlds.
+  enabled: true
+
+  # The ores that are hidden from x-ray clients.
+  hidden-blocks:
+    - COAL_ORE
+    - DEEPSLATE_COAL_ORE
+    - COPPER_ORE
+    - DEEPSLATE_COPPER_ORE
+    - IRON_ORE
+    - DEEPSLATE_IRON_ORE
+    - GOLD_ORE
+    - DEEPSLATE_GOLD_ORE
+    - NETHER_GOLD_ORE
+    - REDSTONE_ORE
+    - DEEPSLATE_REDSTONE_ORE
+    - LAPIS_ORE
+    - DEEPSLATE_LAPIS_ORE
+    - DIAMOND_ORE
+    - DEEPSLATE_DIAMOND_ORE
+    - EMERALD_ORE
+    - DEEPSLATE_EMERALD_ORE
+    - ANCIENT_DEBRIS
+
+  # GRADUALLY : only hides ores that are completely buried.
+  # FULL_VEIN : hides the whole vein as soon as one block of it is buried.
+  # ALL        : hides every configured ore, even exposed ones.
+  hide-mode: GRADUALLY
+
+  # SINGLE : only reveals the ore that became exposed.
+  # VEIN   : reveals the whole vein as soon as one block becomes exposed.
+  reveal-mode: SINGLE
+
+  # The blocks that are used to disguise the ores.
+  camouflage:
+    # Picked randomly out of the list below. When false the first entry of the
+    # matching list is always used.
+    randomize: true
+
+    # Used in the overworld above y = 0.
+    overworld:
+      - STONE
+      - ANDESITE
+      - DIORITE
+      - GRANITE
+      - TUFF
+      - TUFF_ANDESITE
+      - TUFF_DIORITE
+      - TUFF_GRANITE
+
+    # Used in the overworld below y = 0.
+    deepslate:
+      - DEEPSLATE
+      - DEEPSLATE_ANDESITE
+      - DEEPSLATE_DIORITE
+      - DEEPSLATE_GRANITE
+      - TUFF
+      - TUFF_ANDESITE
+      - TUFF_DIORITE
+      - TUFF_GRANITE
+
+    # Used in the nether.
+    nether:
+      - NETHERRACK
+      - BASALT
+      - BLACKSTONE
+      - NETHERRACK
+      - SOUL_SAND
+      - SOUL_SOIL
+      - MAGMA_BLOCK
+
+    # Used in the end.
+    end:
+      - END_STONE
+
+worlds:
+  # Per world overrides. Every key of this section is the name of a world.
+  # The values that are not set are inherited from the "defaults" section.
+  #
+  # world:
+  #   enabled: false
+  #   hide-mode: FULL_VEIN
+  #   hidden-blocks:
+  #     - DIAMOND_ORE
+  #     - DEEPSLATE_DIAMOND_ORE
+  #   camouflage:
+  #     overworld:
+  #       - STONE

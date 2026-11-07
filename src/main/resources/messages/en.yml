@@ -1,0 +1,35 @@
+# AntiXag - English messages
+# Copyright (C) 2026 Madoez Vn, BakiCode, Alexander Vn
+# GPL-3.0
+
+prefix: '&8[&cAntiXag&8] &r'
+
+no-permission: '&cYou do not have permission to use this command.'
+player-only: '&cThis command can only be used by a player.'
+unknown-command: '&cUnknown sub command. Use &f/antixag help&c.'
+reloaded: '&aConfiguration reloaded in &f{0}ms&a.'
+
+status-header: '&8&m---------------------&r &cAntiXag &8&m-----------------'
+status-version: '&fVersion: &a{0}'
+status-server: '&fServer: &a{0}'
+status-protocol: '&fProtocolLib: &a{0}'
+status-language: '&fLanguage: &a{0}'
+status-worlds: '&fProtected worlds: &a{0}'
+status-hidden: '&fHidden blocks: &a{0}'
+status-chunks: '&fChunks rewritten: &a{0}'
+status-ores: '&fOres hidden: &a{0}'
+status-enabled: '&fMode: &a{0}'
+
+debug-enabled: '&aDebug mode has been enabled.'
+debug-disabled: '&eDebug mode has been disabled.'
+
+world-list-header: '&8&m---------------------&r &cAntiXag worlds &8&m-----------------'
+world-list-entry: '&f{0} &7- &aenabled &7({1})'
+world-list-entry-disabled: '&f{0} &7- &cdisabled &7({1})'
+
+help-header: '&8&m---------------------&r &cAntiXag help &8&m-----------------'
+help-reload: '&f/antixag reload &7- reloads the configuration'
+help-status: '&f/antixag status &7- shows the plugin status'
+help-debug: '&f/antixag debug &7- toggles the debug mode'
+help-worlds: '&f/antixag worlds &7- lists the protected worlds'
+help-help: '&f/antixag help &7- shows this help'

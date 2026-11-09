@@ -6,7 +6,7 @@
 
     <groupId>vn.madoez</groupId>
     <artifactId>antixag-plugin</artifactId>
-    <version>2026.1.0</version>
+    <version>2026.1.1</version>
     <packaging>jar</packaging>
 
     <name>AntiXag</name>

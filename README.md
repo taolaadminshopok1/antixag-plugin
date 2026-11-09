@@ -48,7 +48,7 @@
 ## 📦 Installation
 
 1. Download the latest release from the [releases page](https://github.com/taolaadminshopok1/antixag-plugin/releases).
-2. Drop `AntiXag-2026.1.0.jar` into the `plugins` folder of your server.
+2. Drop `AntiXag-2026.1.1.jar` into the `plugins` folder of your server.
 3. Install [ProtocolLib](https://github.com/dmulloy2/ProtocolLib/releases) into the `plugins` folder as well.
 4. Start the server. The `config.yml` and the `messages` folder are generated automatically.
 
@@ -139,7 +139,7 @@ cd antixag-plugin
 mvn clean package
 ```
 
-The finished plugin is written to `target/AntiXag-2026.1.0.jar`.
+The finished plugin is written to `target/AntiXag-2026.1.1.jar`.
 
 Requirements for building: JDK 17 and Maven 3.8 or newer.
 
@@ -236,7 +236,7 @@ The full text of the license can be found in [LICENSE](LICENSE).
 ## 📦 Cài đặt
 
 1. Tải bản mới nhất từ [trang Releases](https://github.com/taolaadminshopok1/antixag-plugin/releases).
-2. Chép `AntiXag-2026.1.0.jar` vào thư mục `plugins` của máy chủ.
+2. Chép `AntiXag-2026.1.1.jar` vào thư mục `plugins` của máy chủ.
 3. Cài thêm [ProtocolLib](https://github.com/dmulloy2/ProtocolLib/releases) vào thư mục `plugins`.
 4. Khởi động máy chủ. File `config.yml` và thư mục `messages` sẽ được tạo tự động.
 
@@ -273,7 +273,7 @@ cd antixag-plugin
 mvn clean package
 ```
 
-File plugin hoàn chỉnh nằm ở `target/AntiXag-2026.1.0.jar`.
+File plugin hoàn chỉnh nằm ở `target/AntiXag-2026.1.1.jar`.
 
 ---
 

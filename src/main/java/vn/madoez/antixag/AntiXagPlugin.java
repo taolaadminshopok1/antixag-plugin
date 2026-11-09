@@ -24,6 +24,7 @@ import vn.madoez.antixag.lang.Messages;
 import vn.madoez.antixag.listener.BlockChangeAdapter;
 import vn.madoez.antixag.listener.BlockListener;
 import vn.madoez.antixag.listener.ChunkPacketListener;
+import vn.madoez.antixag.listener.MultiBlockChangeAdapter;
 import vn.madoez.antixag.protocol.BlockStateRegistry;
 import vn.madoez.antixag.protocol.ChunkObfuscator;
 
@@ -33,6 +34,7 @@ import com.comphenix.protocol.ProtocolManager;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -63,6 +65,8 @@ public final class AntiXagPlugin extends JavaPlugin {
     private ProtocolManager protocolManager;
     private ChunkPacketListener chunkListener;
     private BlockChangeAdapter blockChangeAdapter;
+    private MultiBlockChangeAdapter multiBlockChangeAdapter;
+    private BlockListener blockListener;
 
     @Override
     public void onEnable() {
@@ -96,10 +100,13 @@ public final class AntiXagPlugin extends JavaPlugin {
 
         chunkListener = new ChunkPacketListener(this, obfuscator);
         blockChangeAdapter = new BlockChangeAdapter(this, registry);
+        multiBlockChangeAdapter = new MultiBlockChangeAdapter(this, registry);
         protocolManager.addPacketListener(chunkListener);
         protocolManager.addPacketListener(blockChangeAdapter);
+        protocolManager.addPacketListener(multiBlockChangeAdapter);
 
-        getServer().getPluginManager().registerEvents(new BlockListener(this), this);
+        blockListener = new BlockListener(this);
+        getServer().getPluginManager().registerEvents(blockListener, this);
 
         registerCommand();
 
@@ -165,10 +172,18 @@ public final class AntiXagPlugin extends JavaPlugin {
                 protocolManager.removePacketListeners(this);
                 chunkListener = new ChunkPacketListener(this, obfuscator);
                 blockChangeAdapter = new BlockChangeAdapter(this, registry);
+                multiBlockChangeAdapter = new MultiBlockChangeAdapter(this, registry);
                 protocolManager.addPacketListener(chunkListener);
                 protocolManager.addPacketListener(blockChangeAdapter);
+                protocolManager.addPacketListener(multiBlockChangeAdapter);
             }
-            getServer().getPluginManager().registerEvents(new BlockListener(this), this);
+            // The old listener has to be unregistered, otherwise every reload
+            // would add another one and the events would be handled twice.
+            if (blockListener != null) {
+                HandlerList.unregisterAll(blockListener);
+            }
+            blockListener = new BlockListener(this);
+            getServer().getPluginManager().registerEvents(blockListener, this);
         }
     }
 
@@ -226,6 +241,15 @@ public final class AntiXagPlugin extends JavaPlugin {
      */
     public BlockChangeAdapter revealer() {
         return blockChangeAdapter;
+    }
+
+    /**
+     * Returns the protocol manager of ProtocolLib.
+     *
+     * @return the protocol manager
+     */
+    public ProtocolManager protocolManager() {
+        return protocolManager;
     }
 
     /**

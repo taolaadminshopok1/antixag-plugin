@@ -19,6 +19,8 @@ status-hidden: '&fLoại quặng bị ẩn: &a{0}'
 status-chunks: '&fChunk đã xử lý: &a{0}'
 status-ores: '&fQuặng đã ẩn: &a{0}'
 status-enabled: '&fChế độ: &a{0}'
+status-mode: '&fChế độ ẩn: &a{0}'
+status-reveal: '&fChế độ hiện: &a{0}'
 
 debug-enabled: '&aĐã bật chế độ gỡ lỗi.'
 debug-disabled: '&eĐã tắt chế độ gỡ lỗi.'

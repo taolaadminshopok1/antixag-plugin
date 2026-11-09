@@ -169,7 +169,7 @@ public final class Messages {
      * @param values the placeholders that should be replaced
      */
     public void send(CommandSender sender, String key, Object... values) {
-        sender.sendMessage(get(key, values));
+        sender.sendMessage(prefix() + get(key, values));
     }
 
     /**
@@ -185,10 +185,18 @@ public final class Messages {
     /**
      * Returns the prefix of the plugin.
      *
+     * <p>The prefix is read from the language file so that it can be
+     * customized. The built-in prefix is used when the file does not
+     * contain one.</p>
+     *
      * @return the colored prefix
      */
     public String prefix() {
-        return colorize(PREFIX);
+        String prefix = messages.get("prefix");
+        if (prefix == null || prefix.isEmpty()) {
+            prefix = PREFIX;
+        }
+        return colorize(prefix);
     }
 
     /**

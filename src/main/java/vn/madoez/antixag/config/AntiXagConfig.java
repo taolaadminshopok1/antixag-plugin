@@ -70,7 +70,12 @@ public final class AntiXagConfig {
         hidePlacedBlocks = config.getBoolean("settings.hide-placed-blocks", true);
         protectFromExplosions = config.getBoolean("settings.protect-from-explosions", true);
         hideOnlyInSurvival = config.getBoolean("settings.hide-only-in-survival", false);
-        excludedWorlds = new HashSet<>(config.getStringList("settings.excluded-worlds"));
+        excludedWorlds = new HashSet<>();
+        for (String name : config.getStringList("settings.excluded-worlds")) {
+            if (name != null && !name.trim().isEmpty()) {
+                excludedWorlds.add(name.trim().toLowerCase(Locale.ROOT));
+            }
+        }
 
         defaults = readWorldSettings(config.getConfigurationSection("defaults"), defaults);
         worldOverrides.clear();

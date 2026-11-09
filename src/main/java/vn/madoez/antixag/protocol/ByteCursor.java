@@ -24,10 +24,16 @@ package vn.madoez.antixag.protocol;
  * <p>All methods operate on the same underlying array. The cursor keeps track
  * of the current position, which makes it possible to decode a packet
  * section by section and re-encode it afterwards.</p>
+ *
+ * <p>The backing array grows automatically when a write would exceed its
+ * capacity. This is required because the size of a rewritten chunk section is
+ * not known in advance: a section that falls back to the global paletted
+ * container variant needs far more bytes than the compact local variant it
+ * replaces.</p>
  */
 public final class ByteCursor {
 
-    private final byte[] data;
+    private byte[] data;
     private int position;
 
     public ByteCursor(byte[] data) {
@@ -35,7 +41,7 @@ public final class ByteCursor {
     }
 
     public ByteCursor(byte[] data, int position) {
-        this.data = data;
+        this.data = data == null ? new byte[0] : data;
         this.position = position;
     }
 
@@ -55,6 +61,7 @@ public final class ByteCursor {
      */
     public void position(int position) {
         this.position = position;
+        ensureCapacity(0);
     }
 
     /**
@@ -81,6 +88,7 @@ public final class ByteCursor {
      * @return the value between 0 and 255
      */
     public int readUnsignedByte() {
+        require(1);
         return data[position++] & 0xFF;
     }
 
@@ -90,6 +98,7 @@ public final class ByteCursor {
      * @return the signed short value
      */
     public short readShort() {
+        require(2);
         int value = ((data[position] & 0xFF) << 8) | (data[position + 1] & 0xFF);
         position += 2;
         return (short) value;
@@ -101,6 +110,7 @@ public final class ByteCursor {
      * @return the long value
      */
     public long readLong() {
+        require(8);
         long value = 0L;
         for (int i = 0; i < 8; i++) {
             value = (value << 8) | (data[position++] & 0xFFL);
@@ -129,6 +139,7 @@ public final class ByteCursor {
             if (shift >= 35) {
                 throw new IllegalStateException("VarInt is too big");
             }
+            require(1);
             int current = data[position++] & 0xFF;
             value |= (current & 0x7F) << shift;
             if ((current & 0x80) == 0) {
@@ -145,6 +156,10 @@ public final class ByteCursor {
      */
     public long[] readLongArray() {
         int count = readVarInt();
+        if (count < 0) {
+            throw new IllegalStateException("Invalid length of a long array: " + count);
+        }
+        require(count * 8);
         long[] result = new long[count];
         for (int i = 0; i < count; i++) {
             result[i] = readLong();
@@ -180,6 +195,7 @@ public final class ByteCursor {
      * @param value the value to write
      */
     public void writeUnsignedByte(int value) {
+        ensureCapacity(1);
         data[position++] = (byte) value;
     }
 
@@ -189,6 +205,7 @@ public final class ByteCursor {
      * @param value the value to write
      */
     public void writeShort(int value) {
+        ensureCapacity(2);
         data[position++] = (byte) (value >>> 8);
         data[position++] = (byte) value;
     }
@@ -199,6 +216,7 @@ public final class ByteCursor {
      * @param value the value to write
      */
     public void writeLong(long value) {
+        ensureCapacity(8);
         for (int i = 7; i >= 0; i--) {
             data[position++] = (byte) (value >>> (i * 8));
         }
@@ -212,6 +230,7 @@ public final class ByteCursor {
     public void writeVarInt(int value) {
         int remaining = value;
         while (true) {
+            ensureCapacity(1);
             if ((remaining & ~0x7F) == 0) {
                 data[position++] = (byte) remaining;
                 return;
@@ -227,7 +246,44 @@ public final class ByteCursor {
      * @param bytes the bytes to write
      */
     public void writeBytes(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            return;
+        }
+        ensureCapacity(bytes.length);
         System.arraycopy(bytes, 0, data, position, bytes.length);
         position += bytes.length;
+    }
+
+    /**
+     * Makes sure that at least {@code extra} more bytes fit into the backing
+     * array. The array is reallocated when needed.
+     *
+     * @param extra the amount of additional bytes that have to fit
+     */
+    public void ensureCapacity(int extra) {
+        int required = position + extra;
+        if (required <= data.length) {
+            return;
+        }
+        int capacity = Math.max(64, data.length);
+        while (capacity < required) {
+            capacity *= 2;
+        }
+        byte[] grown = new byte[capacity];
+        System.arraycopy(data, 0, grown, 0, position);
+        data = grown;
+    }
+
+    /**
+     * Makes sure that at least {@code count} more bytes can be read.
+     *
+     * @param count the amount of bytes that have to be available
+     */
+    private void require(int count) {
+        if (count < 0 || position + count > data.length) {
+            throw new IllegalStateException("Tried to read " + count
+                    + " bytes at position " + position + " but only "
+                    + (data.length - position) + " are left");
+        }
     }
 }

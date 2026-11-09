@@ -91,6 +91,8 @@ public final class AntiXagCommand implements CommandExecutor, TabCompleter {
         messages.send(sender, "status-protocol", plugin.protocolLibVersion());
         messages.send(sender, "status-language", messages.language());
         messages.send(sender, "status-enabled", plugin.config().debug() ? "debug" : "normal");
+        messages.send(sender, "status-mode", plugin.config().defaults().hideMode().name());
+        messages.send(sender, "status-reveal", plugin.config().defaults().revealMode().name());
         messages.send(sender, "status-chunks", plugin.chunksProcessed());
         messages.send(sender, "status-ores", plugin.oresHidden());
         messages.send(sender, "status-worlds", plugin.protectedWorlds().size());

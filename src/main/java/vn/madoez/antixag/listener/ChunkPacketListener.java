@@ -17,6 +17,11 @@
  */
 package vn.madoez.antixag.listener;
 
+import vn.madoez.antixag.AntiXagPlugin;
+import vn.madoez.antixag.config.WorldSettings;
+import vn.madoez.antixag.protocol.ChunkObfuscator;
+import vn.madoez.antixag.protocol.ChunkPacketCodec;
+
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.events.ListenerPriority;
 import com.comphenix.protocol.events.PacketAdapter;
@@ -24,11 +29,7 @@ import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.events.PacketEvent;
 import com.comphenix.protocol.wrappers.WrappedLevelChunkData;
 
-import vn.madoez.antixag.AntiXagPlugin;
-import vn.madoez.antixag.config.WorldSettings;
-import vn.madoez.antixag.protocol.ChunkObfuscator;
-import vn.madoez.antixag.protocol.ChunkPacketCodec;
-
+import org.bukkit.GameMode;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
@@ -64,6 +65,12 @@ public final class ChunkPacketListener extends PacketAdapter {
         World world = player.getWorld();
         WorldSettings settings = plugin.config().settingsFor(world);
         if (settings == null || !settings.enabled()) {
+            return;
+        }
+        if (plugin.config().hideOnlyInSurvival() && player.getGameMode() != GameMode.SURVIVAL) {
+            return;
+        }
+        if (player.hasPermission("antixag.bypass")) {
             return;
         }
 
@@ -111,6 +118,9 @@ public final class ChunkPacketListener extends PacketAdapter {
 
         ChunkObfuscator.Result result = obfuscator.obfuscate(buffer, chunkX, chunkZ,
                 world.getMinHeight(), world, settings);
+
+        plugin.countChunk();
+
         if (result.hiddenCount() <= 0) {
             return true;
         }
@@ -118,6 +128,12 @@ public final class ChunkPacketListener extends PacketAdapter {
         if (!writeBuffer(packet, result.buffer())) {
             return false;
         }
+
+        plugin.countOres(result.hiddenCount());
+
+        // The chunk was rewritten, so the ores that were revealed inside it
+        // are hidden again. The reveal state has to be dropped.
+        plugin.revealer().clearRevealed(player, chunkX, chunkZ);
 
         if (plugin.config().debug()) {
             plugin.debug("Hid " + result.hiddenCount() + " ores in chunk "

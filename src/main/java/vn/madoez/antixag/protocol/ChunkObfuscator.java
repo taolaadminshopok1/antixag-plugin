@@ -18,14 +18,14 @@
 package vn.madoez.antixag.protocol;
 
 import vn.madoez.antixag.config.WorldSettings;
+import vn.madoez.antixag.engine.Camouflage;
+import vn.madoez.antixag.engine.VeinGrouper;
 import vn.madoez.antixag.util.BlockPos;
 
 import org.bukkit.Material;
 import org.bukkit.World;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -65,13 +65,11 @@ public final class ChunkObfuscator {
     };
 
     private final BlockStateRegistry registry;
-    private final int globalBits;
     private final Random random;
 
     public ChunkObfuscator(BlockStateRegistry registry, Random random) {
         this.registry = registry;
-        this.globalBits = registry.globalBits();
-        this.random = random;
+        this.random = random == null ? new Random() : random;
     }
 
     /**
@@ -113,7 +111,7 @@ public final class ChunkObfuscator {
                             int minY,
                             World world,
                             WorldSettings settings) {
-        if (buffer == null || buffer.length == 0 || !settings.enabled()
+        if (buffer == null || buffer.length == 0 || settings == null || !settings.enabled()
                 || settings.hiddenBlocks().isEmpty()) {
             return new Result(buffer, 0);
         }
@@ -126,7 +124,9 @@ public final class ChunkObfuscator {
             int start = reader.position();
             short blockStateCount = reader.readShort();
             PalettedContainer blockStates = PalettedContainer.decodeBlockStates(reader);
-            PalettedContainer biomes = PalettedContainer.decodeBiomes(reader);
+            // The biome container is never modified. It is copied verbatim so
+            // that the biome data of the chunk can not be corrupted.
+            byte[] biomes = PalettedContainer.readRawBiomes(reader);
             Section section = new Section(start, blockStateCount, blockStates, biomes);
             section.baseY = minY + sectionIndex * 16;
             sectionIndex++;
@@ -144,21 +144,17 @@ public final class ChunkObfuscator {
             return new Result(buffer, 0);
         }
 
-        byte[] output = new byte[buffer.length + 2048];
-        ByteCursor cursor = new ByteCursor(output);
+        ByteCursor cursor = new ByteCursor(new byte[Math.max(64, buffer.length)]);
         for (Section section : sections) {
             cursor.writeShort(section.blockStateCount);
-            PalettedContainer rebuilt = section.blockStates.rebuild(globalBits,
-                    PalettedContainer.MAX_LOCAL_BLOCK_STATE_BITS, true);
-            byte[] encoded = rebuilt.encode();
-            cursor.writeBytes(encoded);
-            // The biome container is never modified, so it is copied verbatim.
-            byte[] biomes = section.biomes.encode();
-            cursor.writeBytes(biomes);
+            PalettedContainer rebuilt = section.blockStates.rebuild(
+                    PalettedContainer.MIN_BLOCK_STATE_BITS);
+            cursor.writeBytes(rebuilt.encode());
+            cursor.writeBytes(section.biomes);
         }
 
         byte[] result = new byte[cursor.position()];
-        System.arraycopy(output, 0, result, 0, result.length);
+        System.arraycopy(cursor.data(), 0, result, 0, result.length);
         return new Result(result, hidden);
     }
 
@@ -188,6 +184,9 @@ public final class ChunkObfuscator {
         }
 
         int hidden = 0;
+        // The visited set only holds positions that were actually assigned to a
+        // vein. Marking a neighbour before its material was known would skip
+        // the vein that the neighbour belongs to.
         Set<BlockPos> visited = new HashSet<>();
         for (BlockPos start : ores.keySet()) {
             if (!visited.add(start)) {
@@ -254,33 +253,26 @@ public final class ChunkObfuscator {
         return count;
     }
 
+    /**
+     * Collects the vein that belongs to the given start position.
+     *
+     * <p>The flood fill only joins blocks of the exact same material. A
+     * position is added to the visited set as soon as it is known to be part
+     * of a vein, so that a neighbouring vein of a different material is never
+     * swallowed.</p>
+     *
+     * @param start   the first block of the vein
+     * @param ores    every known ore of the chunk
+     * @param visited the positions that already belong to a vein
+     * @param lookup  the accessor for the block data
+     * @return every position of the vein
+     */
     private List<BlockPos> collectVein(BlockPos start,
                                        Map<BlockPos, Material> ores,
                                        Set<BlockPos> visited,
                                        Lookup lookup) {
-        List<BlockPos> vein = new ArrayList<>();
-        Deque<BlockPos> queue = new ArrayDeque<>();
-        queue.add(start);
         Material material = ores.get(start);
-        while (!queue.isEmpty()) {
-            BlockPos current = queue.poll();
-            vein.add(current);
-            for (int[] offset : OFFSETS) {
-                BlockPos neighbour = current.offset(offset[0], offset[1], offset[2]);
-                if (!visited.add(neighbour)) {
-                    continue;
-                }
-                Material other = ores.get(neighbour);
-                if (other == null) {
-                    // The neighbour may be an ore of a neighbouring chunk.
-                    other = lookup.materialAt(neighbour);
-                }
-                if (other == material) {
-                    queue.add(neighbour);
-                }
-            }
-        }
-        return vein;
+        return VeinGrouper.collect(start, material, lookup::materialAt, visited);
     }
 
     /**
@@ -291,11 +283,10 @@ public final class ChunkObfuscator {
         private final int start;
         private final short blockStateCount;
         private final PalettedContainer blockStates;
-        private final PalettedContainer biomes;
+        private final byte[] biomes;
         private int baseY;
 
-        Section(int start, short blockStateCount, PalettedContainer blockStates,
-                PalettedContainer biomes) {
+        Section(int start, short blockStateCount, PalettedContainer blockStates, byte[] biomes) {
             this.start = start;
             this.blockStateCount = blockStateCount;
             this.blockStates = blockStates;
@@ -408,33 +399,7 @@ public final class ChunkObfuscator {
      * @return the material the ore should be disguised with
      */
     public Material camouflageFor(WorldSettings settings, World.Environment environment, int y) {
-        List<Material> palette = paletteFor(settings, environment, y);
-        if (palette.isEmpty()) {
-            return Material.STONE;
-        }
-        if (!settings.randomizeCamouflage() || palette.size() == 1) {
-            return palette.get(0);
-        }
-        return palette.get(random.nextInt(palette.size()));
-    }
-
-    private List<Material> paletteFor(WorldSettings settings, World.Environment environment, int y) {
-        if (environment == World.Environment.NETHER) {
-            return settings.netherPalette().isEmpty()
-                    ? settings.overworldPalette()
-                    : settings.netherPalette();
-        }
-        if (environment == World.Environment.THE_END) {
-            return settings.endPalette().isEmpty()
-                    ? settings.overworldPalette()
-                    : settings.endPalette();
-        }
-        if (y < 0) {
-            return settings.deepslatePalette().isEmpty()
-                    ? settings.overworldPalette()
-                    : settings.deepslatePalette();
-        }
-        return settings.overworldPalette();
+        return Camouflage.forOre(settings, environment, y, random);
     }
 
     /**

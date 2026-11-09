@@ -31,7 +31,8 @@ settings:
   # Only hides ores while the player is in survival mode.
   hide-only-in-survival: false
 
-  # Worlds that are never protected by AntiXag.
+  # Worlds that are never protected by AntiXag. The names are matched
+  # case insensitively.
   excluded-worlds: []
 
 defaults:

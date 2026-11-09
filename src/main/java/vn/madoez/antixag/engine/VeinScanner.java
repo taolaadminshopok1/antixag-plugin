@@ -21,9 +21,7 @@ import vn.madoez.antixag.util.BlockPos;
 
 import org.bukkit.Material;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -36,13 +34,6 @@ import java.util.Set;
  * keeps a gold vein separate from an iron vein that happens to touch it.</p>
  */
 public final class VeinScanner {
-
-    /** The six face neighbours of a block. */
-    private static final int[][] OFFSETS = {
-            {1, 0, 0}, {-1, 0, 0},
-            {0, 1, 0}, {0, -1, 0},
-            {0, 0, 1}, {0, 0, -1}
-    };
 
     private VeinScanner() {
     }
@@ -82,31 +73,9 @@ public final class VeinScanner {
                         continue;
                     }
 
-                    Set<BlockPos> group = new HashSet<>();
-                    Deque<BlockPos> queue = new ArrayDeque<>();
-                    queue.add(start);
-                    visited.add(start);
-
-                    while (!queue.isEmpty()) {
-                        BlockPos current = queue.poll();
-                        group.add(current);
-                        for (int[] offset : OFFSETS) {
-                            int nx = current.x() + offset[0];
-                            int ny = current.y() + offset[1];
-                            int nz = current.z() + offset[2];
-                            if (nx < minX || nx > maxX || ny < minY || ny > maxY || nz < minZ || nz > maxZ) {
-                                continue;
-                            }
-                            BlockPos neighbour = new BlockPos(nx, ny, nz);
-                            if (!visited.add(neighbour)) {
-                                continue;
-                            }
-                            if (source.materialAt(nx, ny, nz) == material) {
-                                queue.add(neighbour);
-                            }
-                        }
-                    }
-                    veins.add(new OreVein(material, group));
+                    List<BlockPos> group = VeinGrouper.collect(start, material,
+                            pos -> source.materialAt(pos.x(), pos.y(), pos.z()), visited);
+                    veins.add(new OreVein(material, new HashSet<>(group)));
                 }
             }
         }

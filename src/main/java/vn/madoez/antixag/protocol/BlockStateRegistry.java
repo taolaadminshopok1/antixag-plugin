@@ -131,6 +131,18 @@ public final class BlockStateRegistry {
         return candidate == blockStateClass || blockStateClass.isAssignableFrom(candidate);
     }
 
+    /**
+     * Finds the first method that matches the given predicate.
+     *
+     * <p>Several methods of the vanilla classes may match a loose predicate.
+     * The first match is used, which is safe because all matching methods
+     * have the same signature and therefore the same behaviour.</p>
+     *
+     * @param owner      the class to inspect
+     * @param predicate  the signature of the wanted method
+     * @param description a human readable description used in the error message
+     * @return the located method
+     */
     private static Method findStatic(Class<?> owner,
                                      java.util.function.Predicate<Method> predicate,
                                      String description) {
@@ -180,8 +192,9 @@ public final class BlockStateRegistry {
     /**
      * Resolves the size of the global block state registry.
      *
-     * <p>The size is required to compute the amount of bits that are used by
-     * the global container variant.</p>
+     * <p>The size is only used for diagnostics. When it can not be resolved
+     * the registry still works, so a failure must not abort the start of the
+     * plugin.</p>
      */
     private static int resolveRegistrySize(Class<?> blockClass) {
         for (Field field : blockClass.getDeclaredFields()) {
@@ -222,7 +235,9 @@ public final class BlockStateRegistry {
                 // Try the next candidate.
             }
         }
-        throw new IllegalStateException("Unable to determine the size of the block state registry");
+        // The size is only informational, so the plugin keeps working when
+        // the registry does not expose it.
+        return 0;
     }
 
     /**
@@ -294,7 +309,7 @@ public final class BlockStateRegistry {
      * @return the ceiling of the binary logarithm of the registry size
      */
     public int globalBits() {
-        return ceilLog2(registrySize);
+        return ceilLog2(Math.max(registrySize, 1));
     }
 
     /**

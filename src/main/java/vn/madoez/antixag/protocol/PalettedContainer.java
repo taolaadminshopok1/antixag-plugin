@@ -26,27 +26,28 @@ import java.util.Arrays;
  * of the vanilla server. A container stores a list of entries. Every entry is
  * either</p>
  * <ul>
- *   <li>a single value (the whole container holds the same value),</li>
+ *   <li>a single value (the whole container holds the same value), or</li>
  *   <li>an index into a local palette that is transmitted with the
- *       container, or</li>
- *   <li>a global registry id (the global container variant).</li>
+ *       container.</li>
  * </ul>
  *
- * <p>The block state container of a chunk section holds 4096 entries, the
- * biome container holds 64 entries.</p>
+ * <p>Since Minecraft 1.13 the chunk sections no longer use the "global
+ * palette" variant: every section is transmitted with a <em>local</em>
+ * palette. Only the amount of bits per entry varies. Decoding a global
+ * variant would misread the palette size and therefore corrupt the whole
+ * packet, so this implementation deliberately supports the local format
+ * only.</p>
  *
  * <h2>Wire format</h2>
  * <pre>
  *   bits == 0    : byte(0)  + VarInt(singleValue) + VarInt(0)
- *   bits == 1..4 : byte(4)  + VarInt(paletteSize) + VarInt[paletteSize] + VarInt(longCount) + long[longCount]
- *   bits == 5..8 : byte(bits)+ VarInt(paletteSize) + VarInt[paletteSize] + VarInt(longCount) + long[longCount]
- *   bits &gt;= 9    : byte(ceilLog2(registrySize)) + VarInt(longCount) + long[longCount]
+ *   bits == 1..8 : byte(bits) + VarInt(paletteSize) + VarInt[paletteSize]
+ *                        + VarInt(longCount) + long[longCount]
  * </pre>
  *
- * <p>The first byte always carries the amount of bits that are used per
- * entry. The vanilla server never uses fewer than four bits for the block
- * state container of a section, even when the palette would fit into one or
- * two bits. The biomes container keeps the transmitted amount of bits.</p>
+ * <p>The vanilla server uses four bits for the block state container of a
+ * section, even when the palette would fit into one or two bits. The biome
+ * container uses as many bits as its palette requires.</p>
  */
 public final class PalettedContainer {
 
@@ -56,23 +57,24 @@ public final class PalettedContainer {
     /** Number of entries of a biome container. */
     public static final int BIOME_ENTRIES = 64;
 
-    /** Largest amount of bits a local block state palette may use. */
-    public static final int MAX_LOCAL_BLOCK_STATE_BITS = 8;
-
-    /** Largest amount of bits a local biome palette may use. */
-    public static final int MAX_LOCAL_BIOME_BITS = 3;
-
     /** Amount of bits that the vanilla server uses for a small block palette. */
     public static final int MIN_BLOCK_STATE_BITS = 4;
 
+    /**
+     * Largest amount of bits a local palette may use.
+     *
+     * <p>A palette that needs more bits than this cannot be represented
+     * without falling back to a format that the vanilla client does not
+     * understand, so the rewrite is aborted instead.</p>
+     */
+    public static final int MAX_PALETTE_BITS = 8;
+
     private final int bits;
-    private final boolean global;
     private int[] palette;
     private final int[] entries;
 
-    private PalettedContainer(int bits, boolean global, int[] palette, int[] entries) {
+    private PalettedContainer(int bits, int[] palette, int[] entries) {
         this.bits = bits;
-        this.global = global;
         this.palette = palette;
         this.entries = entries;
     }
@@ -84,55 +86,89 @@ public final class PalettedContainer {
      * @return the decoded container
      */
     public static PalettedContainer decodeBlockStates(ByteCursor cursor) {
-        return decode(cursor, BLOCK_STATE_ENTRIES, true);
+        return decode(cursor, BLOCK_STATE_ENTRIES, MAX_PALETTE_BITS);
     }
 
     /**
-     * Decodes a biome container.
+     * Decodes a container with the given amount of entries.
      *
-     * @param cursor the cursor to read from
+     * @param cursor     the cursor to read from
+     * @param entryCount the amount of entries of the container
      * @return the decoded container
      */
-    public static PalettedContainer decodeBiomes(ByteCursor cursor) {
-        return decode(cursor, BIOME_ENTRIES, false);
+    public static PalettedContainer decode(ByteCursor cursor, int entryCount) {
+        return decode(cursor, entryCount, MAX_PALETTE_BITS);
     }
 
-    private static PalettedContainer decode(ByteCursor cursor,
-                                            int entryCount,
-                                            boolean blockStates) {
+    /**
+     * Decodes a container with the given amount of entries.
+     *
+     * @param cursor     the cursor to read from
+     * @param entryCount the amount of entries of the container
+     * @param maxBits    the largest amount of bits that the container may use
+     * @return the decoded container
+     */
+    public static PalettedContainer decode(ByteCursor cursor, int entryCount, int maxBits) {
         int bits = cursor.readUnsignedByte();
 
         if (bits == 0) {
-            // Single value palette. The value is stored directly, the storage
-            // is an empty long array.
+            // Single value variant. The value is stored directly and the
+            // storage is an empty long array.
             int value = cursor.readVarInt();
             cursor.readVarInt();
             int[] single = new int[entryCount];
             // Every entry references palette index zero.
-            Arrays.fill(single, 0);
-            return new PalettedContainer(0, false, new int[]{value}, single);
+            return new PalettedContainer(0, new int[]{value}, single);
         }
 
-        int maxLocalBits = blockStates ? MAX_LOCAL_BLOCK_STATE_BITS : MAX_LOCAL_BIOME_BITS;
-        if (bits > maxLocalBits) {
-            // Global palette. The bits encode the size of the global registry
-            // and the storage holds the registry ids themselves.
-            long[] storage = cursor.readLongArray();
-            int[] decodedEntries = unpack(storage, entryCount, bits);
-            return new PalettedContainer(bits, true, new int[0], decodedEntries);
+        if (bits > maxBits) {
+            throw new IllegalStateException("Unsupported amount of palette bits: " + bits
+                    + ", at most " + maxBits + " are allowed");
         }
 
-        // Local palette. The vanilla server forces the storage of a block
-        // state container to four bits when the palette is small.
-        int storageBits = blockStates ? Math.max(bits, MIN_BLOCK_STATE_BITS) : bits;
         int paletteSize = cursor.readVarInt();
+        if (paletteSize < 0 || paletteSize > (1 << bits)) {
+            throw new IllegalStateException("Invalid palette size " + paletteSize
+                    + " for " + bits + " bits");
+        }
         int[] decodedPalette = new int[paletteSize];
         for (int i = 0; i < paletteSize; i++) {
             decodedPalette[i] = cursor.readVarInt();
         }
         long[] storage = cursor.readLongArray();
-        int[] decodedEntries = unpack(storage, entryCount, storageBits);
-        return new PalettedContainer(storageBits, false, decodedPalette, decodedEntries);
+        int[] decodedEntries = unpack(storage, entryCount, bits);
+        return new PalettedContainer(bits, decodedPalette, decodedEntries);
+    }
+
+    /**
+     * Reads the raw bytes of a biome container without decoding it.
+     *
+     * <p>The biome container is never modified by AntiXag. Decoding and
+     * re-encoding it would risk changing the amount of bits and therefore
+     * corrupting the biome data of the chunk, so the original bytes are kept
+     * and copied back verbatim.</p>
+     *
+     * @param cursor the cursor to read from
+     * @return the original bytes of the container
+     */
+    public static byte[] readRawBiomes(ByteCursor cursor) {
+        int start = cursor.position();
+        int bits = cursor.readUnsignedByte();
+        if (bits == 0) {
+            cursor.readVarInt();
+            cursor.readVarInt();
+        } else {
+            int paletteSize = cursor.readVarInt();
+            for (int i = 0; i < paletteSize; i++) {
+                cursor.readVarInt();
+            }
+            int longCount = cursor.readVarInt();
+            cursor.skipBytes(longCount * 8);
+        }
+        int end = cursor.position();
+        byte[] raw = new byte[end - start];
+        System.arraycopy(cursor.data(), start, raw, 0, raw.length);
+        return raw;
     }
 
     private static int[] unpack(long[] data, int entryCount, int bits) {
@@ -163,18 +199,9 @@ public final class PalettedContainer {
     }
 
     /**
-     * Checks whether the container uses the global registry.
-     *
-     * @return {@code true} for the global variant
-     */
-    public boolean global() {
-        return global;
-    }
-
-    /**
      * Returns the local palette of the container.
      *
-     * @return the palette entries, empty for the global variant
+     * @return the palette entries
      */
     public int[] palette() {
         return palette;
@@ -183,8 +210,7 @@ public final class PalettedContainer {
     /**
      * Returns the decoded entries of the container.
      *
-     * <p>For a local container the values are indices into the palette, for
-     * the global variant they are the registry ids themselves.</p>
+     * <p>Every entry is an index into the local palette.</p>
      *
      * @return the entries
      */
@@ -200,9 +226,6 @@ public final class PalettedContainer {
      */
     public int valueAt(int index) {
         int entry = entries[index];
-        if (global) {
-            return entry;
-        }
         if (entry < 0 || entry >= palette.length) {
             return -1;
         }
@@ -219,10 +242,6 @@ public final class PalettedContainer {
      * @param value the new global registry id
      */
     public void replaceValue(int index, int value) {
-        if (global) {
-            entries[index] = value;
-            return;
-        }
         int paletteIndex = indexOf(value);
         if (paletteIndex < 0) {
             paletteIndex = palette.length;
@@ -248,12 +267,12 @@ public final class PalettedContainer {
      * values of the container while staying inside the limits that the
      * vanilla client accepts.</p>
      *
-     * @param globalBits   the amount of bits of the global variant
-     * @param maxLocalBits the largest amount of bits a local palette may use
-     * @param blockStates  {@code true} for a block state container
+     * @param minBits the smallest amount of bits the container may use
      * @return the rebuilt container
+     * @throws IllegalStateException when the palette does not fit into the
+     *                               supported amount of bits
      */
-    public PalettedContainer rebuild(int globalBits, int maxLocalBits, boolean blockStates) {
+    public PalettedContainer rebuild(int minBits) {
         int[] values = new int[entries.length];
         for (int i = 0; i < entries.length; i++) {
             values[i] = valueAt(i);
@@ -264,24 +283,21 @@ public final class PalettedContainer {
         if (unique.size() == 1) {
             int only = unique.valueAt(0);
             int[] single = new int[entries.length];
-            Arrays.fill(single, 0);
-            return new PalettedContainer(0, false, new int[]{only}, single);
+            return new PalettedContainer(0, new int[]{only}, single);
         }
 
-        int localBits = BlockStateRegistry.ceilLog2(unique.size());
-        if (localBits > maxLocalBits) {
-            // Too many distinct values for a local palette, fall back to the
-            // global variant.
-            return new PalettedContainer(globalBits, true, new int[0], values);
+        int localBits = Math.max(minBits, ceilLog2(unique.size()));
+        if (localBits > MAX_PALETTE_BITS) {
+            throw new IllegalStateException("The palette needs " + localBits
+                    + " bits, but only " + MAX_PALETTE_BITS + " bits are supported");
         }
 
-        int effectiveBits = blockStates ? Math.max(localBits, MIN_BLOCK_STATE_BITS) : localBits;
         int[] newPalette = unique.toArray();
         int[] newEntries = new int[entries.length];
         for (int i = 0; i < values.length; i++) {
             newEntries[i] = unique.indexOf(values[i]);
         }
-        return new PalettedContainer(effectiveBits, false, newPalette, newEntries);
+        return new PalettedContainer(localBits, newPalette, newEntries);
     }
 
     /**
@@ -301,14 +317,12 @@ public final class PalettedContainer {
         }
 
         long[] storage = pack(entries, bits);
-        int size = 32 + (global ? 0 : 1 + palette.length * 5) + storage.length * 8;
+        int size = 32 + 1 + palette.length * 5 + storage.length * 8;
         ByteCursor cursor = new ByteCursor(new byte[size]);
         cursor.writeUnsignedByte(bits);
-        if (!global) {
-            cursor.writeVarInt(palette.length);
-            for (int value : palette) {
-                cursor.writeVarInt(value);
-            }
+        cursor.writeVarInt(palette.length);
+        for (int value : palette) {
+            cursor.writeVarInt(value);
         }
         cursor.writeVarInt(storage.length);
         for (long value : storage) {
@@ -332,6 +346,19 @@ public final class PalettedContainer {
             storage[longIndex] |= ((long) values[i] & mask) << bitOffset;
         }
         return storage;
+    }
+
+    /**
+     * Computes the ceiling of the binary logarithm.
+     *
+     * @param value the value to inspect
+     * @return {@code ceil(log2(value))}, at least 1
+     */
+    public static int ceilLog2(int value) {
+        if (value <= 1) {
+            return 1;
+        }
+        return 32 - Integer.numberOfLeadingZeros(value - 1);
     }
 
     /**

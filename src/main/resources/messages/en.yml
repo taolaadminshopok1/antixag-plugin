@@ -19,6 +19,8 @@ status-hidden: '&fHidden blocks: &a{0}'
 status-chunks: '&fChunks rewritten: &a{0}'
 status-ores: '&fOres hidden: &a{0}'
 status-enabled: '&fMode: &a{0}'
+status-mode: '&fHide mode: &a{0}'
+status-reveal: '&fReveal mode: &a{0}'
 
 debug-enabled: '&aDebug mode has been enabled.'
 debug-disabled: '&eDebug mode has been disabled.'

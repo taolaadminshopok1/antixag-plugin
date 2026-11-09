@@ -22,11 +22,12 @@
 | | Feature | Description |
 |---|---|---|
 | 🧬 | **Packet-level obfuscation** | The chunk data is rewritten *before* it reaches the client. The world itself is never touched, so the server logic, other plugins and legitimate players always see the real blocks. |
-| 🧠 | **Smart vein detection** | Ores are grouped into veins with a flood fill over the six face neighbours, so a partially mined vein never leaks the position of the remaining ores. |
+| 🧠 | **Smart vein detection** | Ores are grouped into veins with a flood fill over the six face neighbours, so a partially mined vein never leaks the position of the remaining ores. A vein of a different material is never swallowed by its neighbour. |
 | 🪨 | **Dimension aware camouflage** | Stone in the overworld, deepslate below y = 0, netherrack and basalt in the nether, end stone in the end. |
 | 🎲 | **Randomised camouflage** | Every ore can be disguised with a random block out of the matching palette, which makes the caves look natural. |
 | ⚡ | **Three hide strategies** | `GRADUALLY`, `FULL_VEIN` and `ALL` control how aggressively the ores are concealed. |
-| 🔌 | **Live block updates** | Block changes are intercepted as well, so a placed or broken ore never reveals itself. |
+| 🔌 | **Live block updates** | Single block changes *and* batched block changes are intercepted, so a placed, broken or exploded ore never reveals itself. |
+| ⛏️ | **Progressive reveal** | When a player digs into the rock, the ores that become exposed are sent to that player with their real state, so mining still feels natural. |
 | 🌍 | **Per world configuration** | Every world can be enabled, disabled or tuned on its own. |
 | 🌐 | **Bilingual** | Full English and Vietnamese message files. |
 | ⚙️ | **Modern commands** | `/antixag reload`, `/antixag status`, `/antixag debug`, `/antixag worlds`. |
@@ -105,7 +106,6 @@ worlds:
 |---|---|
 | `SINGLE` | Only the ore that became exposed is revealed. |
 | `VEIN` | The whole vein is revealed as soon as one member becomes exposed. |
-
 ---
 
 ## 🎮 Commands
@@ -153,8 +153,15 @@ vn.madoez.antixag
 ├── command/                 The /antixag command
 ├── config/                  The configuration model
 ├── engine/                  The ore detection and vein scanning
+│   ├── Camouflage           The single place that picks the disguise block
+│   ├── VeinGrouper          The flood fill that groups the ores into veins
+│   ├── VeinScanner          Scans a region for veins
+│   └── BlockSource          Read only view over the blocks of a region
 ├── lang/                    The bilingual message manager
 ├── listener/                The packet and block event listeners
+│   ├── ChunkPacketListener  Rewrites the chunk data
+│   ├── BlockChangeAdapter   Rewrites the single block changes and reveals ores
+│   └── MultiBlockChangeAdapter  Rewrites the batched block changes
 ├── protocol/                The wire format handling
 │   ├── BlockStateRegistry   Maps Bukkit materials to protocol ids
 │   ├── ByteCursor           Reads and writes the protocol primitives
@@ -203,11 +210,12 @@ The full text of the license can be found in [LICENSE](LICENSE).
 | | Tính năng | Mô tả |
 |---|---|---|
 | 🧬 | **Ẩn quặng ở tầng gói mạng** | Dữ liệu chunk được sửa lại *trước khi* gửi tới client. Thế giới thật sự không bị thay đổi, nên logic máy chủ, các plugin khác và người chơi bình thường luôn thấy quặng thật. |
-| 🧠 | **Phát hiện mạch quặng thông minh** | Quặng được nhóm thành mạch bằng thuật toán lan tràn trên 6 mặt, nên một mạch đào dở một nửa sẽ không làm lộ vị trí của các quặng còn lại. |
+| 🧠 | **Phát hiện mạch quặng thông minh** | Quặng được nhóm thành mạch bằng thuật toán lan tràn trên 6 mặt, nên một mạch đào dở một nửa sẽ không làm lộ vị trí của các quặng còn lại. Mạch của vật liệu khác không bao giờ bị mạch bên cạnh nuốt mất. |
 | 🪨 | **Ngụy trang theo chiều không gian** | Đá ở Overworld, deepslate dưới y = 0, netherrack và basalt ở Nether, end stone ở End. |
 | 🎲 | **Ngụy trang ngẫu nhiên** | Mỗi viên quặng có thể được giấu bằng một khối ngẫu nhiên trong bảng màu tương ứng, giúp hang động trông tự nhiên. |
 | ⚡ | **Ba chế độ ẩn** | `GRADUALLY`, `FULL_VEIN` và `ALL` điều khiển mức độ che giấu quặng. |
-| 🔌 | **Cập nhật khối tức thì** | Gói tin thay đổi khối cũng bị chặn, nên quặng được đặt hoặc phá sẽ không bao giờ tự lộ. |
+| 🔌 | **Cập nhật khối tức thì** | Cả gói đổi khối đơn lẻ lẫn gói đổi khối hàng loạt đều bị chặn, nên quặng được đặt, phá hoặc bị nổ sẽ không bao giờ tự lộ. |
+| ⛏️ | **Hiện dần khi đào** | Khi người chơi đào vào đá, các quặng bị lộ sẽ được gửi về đúng người chơi đó với trạng thái thật, nên việc đào mạch vẫn rất tự nhiên. |
 | 🌍 | **Cấu hình riêng từng thế giới** | Mỗi thế giới có thể bật, tắt hoặc tinh chỉnh riêng. |
 | 🌐 | **Đa ngôn ngữ** | Bộ tin nhắn tiếng Anh và tiếng Việt đầy đủ. |
 | ⚙️ | **Lệnh hiện đại** | `/antixag reload`, `/antixag status`, `/antixag debug`, `/antixag worlds`. |
